@@ -110,12 +110,21 @@ def executar_varredura():
         except Exception as e:
             registrar_log(f"Erro ao consultar NVD: {e}")
 
-    if novos_dados:
+if novos_dados:
         enviar_email_resumo(novos_dados)
         df = pd.DataFrame(novos_dados)
-        if os.path.exists(ARQUIVO_PLANILHA):
-            df = pd.concat([pd.read_excel(ARQUIVO_PLANILHA), df]).drop_duplicates(subset=['ID CVE'])
-        df.to_excel(ARQUIVO_PLANILHA, index=False)
+        
+        # Verifica se o arquivo existe e tem tamanho maior que 0 bytes
+        if os.path.exists(ARQUIVO_PLANILHA) and os.path.getsize(ARQUIVO_PLANILHA) > 0:
+            try:
+                # Forçamos a engine openpyxl para evitar ambiguidades
+                df_existente = pd.read_excel(ARQUIVO_PLANILHA, engine='openpyxl')
+                df = pd.concat([df_existente, df]).drop_duplicates(subset=['ID CVE'])
+            except Exception as e:
+                registrar_log(f"Aviso: Arquivo Excel corrompido ou ilegível ({e}). Uma nova planilha será criada.")
+        
+        # Salva o resultado final forçando a engine correta
+        df.to_excel(ARQUIVO_PLANILHA, index=False, engine='openpyxl')
         registrar_log(f"Planilha {ARQUIVO_PLANILHA} atualizada.")
     else:
         registrar_log("Nenhuma vulnerabilidade nova encontrada nesta varredura.")
