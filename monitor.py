@@ -81,7 +81,7 @@ def executar_varredura():
     else:
         # Como o bot vai rodar a cada 7 dias, ele busca exatamente os últimos 7 dias
         registrar_log("Histórico encontrado. Buscando novidades da última semana...")
-        data_inicio_geral = data_atual - timedelta(days=7)
+        data_inicio_geral = data_atual - timedelta(days=60)
 
     total_novas_falhas = 0
 
