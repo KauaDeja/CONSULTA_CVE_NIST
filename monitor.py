@@ -6,7 +6,7 @@ import smtplib
 from email.message import EmailMessage
 from datetime import datetime, timedelta, timezone
 
-# Variáveis de Ambiente (Configuradas no GitHub Secrets)
+# --- CONFIGURAÇÕES ---
 CHAVE_API_NVD = os.environ.get("NVD_API_KEY")
 EMAIL_REMETENTE = os.environ.get("EMAIL_USER")
 SENHA_REMETENTE = os.environ.get("EMAIL_PASS")
@@ -22,42 +22,37 @@ ALVOS_MONITORAMENTO = {
 
 ARQUIVO_HISTORICO = "cve_tracker.log"
 ARQUIVO_PLANILHA = "relatorio_cves_recentes.xlsx"
-
 URL_API_NIST = "https://services.nvd.nist.gov/rest/json/cves/2.0"
-CABECALHOS_REQUISICAO = {'User-Agent': 'Monitor-Vulnerabilidades/1.0'}
-if CHAVE_API_NVD:
-    CABECALHOS_REQUISICAO['apiKey'] = CHAVE_API_NVD
 
 def registrar_log(mensagem):
     print(f"[{datetime.now().strftime('%H:%M:%S')}] {mensagem}")
 
 def ler_cves_conhecidos():
     if os.path.exists(ARQUIVO_HISTORICO):
-        with open(ARQUIVO_HISTORICO, "r") as arquivo:
-            return set(arquivo.read().splitlines())
+        with open(ARQUIVO_HISTORICO, "r") as f:
+            return set(f.read().splitlines())
     return set()
 
 def registrar_novo_cve(id_cve):
-    with open(ARQUIVO_HISTORICO, "a") as arquivo:
-        arquivo.write(id_cve + "\n")
+    with open(ARQUIVO_HISTORICO, "a") as f:
+        f.write(id_cve + "\n")
 
 def enviar_email_resumo(novos_dados):
     if not EMAIL_REMETENTE or not SENHA_REMETENTE:
-        registrar_log("Credenciais de e-mail não configuradas.")
+        registrar_log("Erro: Credenciais de e-mail ausentes.")
         return
 
-    assunto = f"[Monitor CVE] {len(novos_dados)} novas vulnerabilidades detectadas!"
+    assunto = f"ALERTA: {len(novos_dados)} Novas Vulnerabilidades Identificadas"
     
-    corpo_txt = "Relatório Semanal de Vulnerabilidades:\n\n"
+    corpo = "Relatorio Semanal de Seguranca\n\n"
     for item in novos_dados:
-        corpo_txt += f"{item['Sistema Afetado']} | {item['ID CVE']} | CVSS: {item['Score CVSS']}\n"
-        corpo_txt += f"Descrição: {item['Descrição Técnica']}\n"
-        corpo_txt += "-" * 50 + "\n"
+        corpo += f"Ativo: {item['Sistema Afetado']} | ID: {item['ID CVE']} | CVSS: {item['Score CVSS']}\n"
+        corpo += f"Descricao: {item['Descrição Técnica']}\n"
+        corpo += "-" * 40 + "\n"
 
-    # APLICAÇÃO DO .encode('utf-8'):
-    # O errors='replace' garante que se houver um caracter impossível, 
-    # ele vira um '?' mas não quebra o script.
-    corpo_final = corpo_txt.encode('utf-8', errors='replace').decode('utf-8')
+    # SOLUÇÃO DEFINITIVA PARA O ERRO DE ENCODING:
+    # Removemos caracteres que o e-mail não aceita e forçamos UTF-8
+    corpo_final = corpo.encode('utf-8', errors='replace').decode('utf-8')
 
     msg = EmailMessage()
     msg.set_content(corpo_final)
@@ -69,106 +64,66 @@ def enviar_email_resumo(novos_dados):
         with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
             server.login(EMAIL_REMETENTE, SENHA_REMETENTE)
             server.send_message(msg)
-        registrar_log(f"E-mail enviado para {EMAIL_DESTINATARIO}!")
-    except Exception as erro:
-        registrar_log(f"Erro ao enviar e-mail: {erro}")
+        registrar_log(f"E-mail enviado para {EMAIL_DESTINATARIO}")
+    except Exception as e:
+        registrar_log(f"Falha no envio: {e}")
 
 def executar_varredura():
-    cves_processados = ler_cves_conhecidos()
-    novos_dados_excel = []
+    conhecidos = ler_cves_conhecidos()
+    novos_dados = []
+    data_fim = datetime.now(timezone.utc)
+    # Busca de 15 dias para garantir que nada escape entre os agendamentos
+    data_ini = data_fim - timedelta(days=15) if conhecidos else datetime(2025, 7, 1, tzinfo=timezone.utc)
     
-    data_atual = datetime.now(timezone.utc)
+    str_ini = data_ini.strftime('%Y-%m-%dT%H:%M:%S.000') + '+00:00'
+    str_fim = data_fim.strftime('%Y-%m-%dT%H:%M:%S.000') + '+00:00'
     
-    if not cves_processados:
-        registrar_log("Nenhum histórico encontrado. Iniciando CARGA INICIAL desde 01/07/2025...")
-        data_inicio_geral = datetime(2025, 7, 1, tzinfo=timezone.utc)
-    else:
-        # Como o bot vai rodar a cada 7 dias, ele busca exatamente os últimos 7 dias
-        registrar_log("Histórico encontrado. Buscando novidades da última semana...")
-        data_inicio_geral = data_atual - timedelta(days=15)
+    headers = {'User-Agent': 'Monitor/1.0'}
+    if CHAVE_API_NVD: headers['apiKey'] = CHAVE_API_NVD
 
-    total_novas_falhas = 0
-
-    for nome_sistema, dados_alvo in ALVOS_MONITORAMENTO.items():
-        termo_busca = dados_alvo["busca"]
-        cpe_sistema = dados_alvo["cpe"]
+    for nome, info in ALVOS_MONITORAMENTO.items():
+        registrar_log(f"Verificando {nome}...")
+        params = {'keywordSearch': info['busca'], 'pubStartDate': str_ini, 'pubEndDate': str_fim}
         
-        registrar_log(f"\nConsultando: {nome_sistema} (Buscando por: '{termo_busca}')")
-        data_atual_inicio = data_inicio_geral
-        
-        while data_atual_inicio < data_atual:
-            data_atual_fim = data_atual_inicio + timedelta(days=90)
-            if data_atual_fim > data_atual:
-                data_atual_fim = data_atual
-                
-            str_data_inicio = data_atual_inicio.strftime('%Y-%m-%dT%H:%M:%S.000') + '+00:00'
-            str_data_fim = data_atual_fim.strftime('%Y-%m-%dT%H:%M:%S.000') + '+00:00'
-
-            parametros_busca = {
-                'keywordSearch': termo_busca,
-                'pubStartDate': str_data_inicio,
-                'pubEndDate': str_data_fim
-            }
-
-            try:
-                resposta = requests.get(URL_API_NIST, headers=CABECALHOS_REQUISICAO, params=parametros_busca, timeout=30)
-                if resposta.status_code == 200:
-                    lista_vulnerabilidades = resposta.json().get('vulnerabilities', [])
+        try:
+            r = requests.get(URL_API_NIST, headers=headers, params=params, timeout=30)
+            if r.status_code == 200:
+                vulns = r.json().get('vulnerabilities', [])
+                for v in vulns:
+                    cve_obj = v.get('cve', {})
+                    cve_id = cve_obj.get('id')
                     
-                    for item in lista_vulnerabilidades:
-                        dados_cve = item.get('cve', {})
-                        id_cve = dados_cve.get('id')
+                    if cve_id not in conhecidos:
+                        desc = next((d.get('value') for d in cve_obj.get('descriptions', []) if d.get('lang') == 'en'), "N/A")
+                        # Limpeza imediata de caracteres invisíveis (\xa0)
+                        desc = desc.replace('\xa0', ' ').encode('utf-8', 'ignore').decode('utf-8')
                         
-                        if id_cve not in cves_processados:
-                            data_publicacao = dados_cve.get('published', 'Data N/A')
-                            # Como deve ficar agora (substitua por estas duas linhas):
-                            descricao_tecnica_crua = next((d.get('value') for d in dados_cve.get('descriptions', []) if d.get('lang') == 'en'), "Sem descrição")
-                            descricao_tecnica = descricao_tecnica_crua.replace('\xa0', ' ')
-                            
-                            pontuacao_cvss = 'N/A'
-                            metricas = dados_cve.get('metrics', {})
-                            if 'cvssMetricV31' in metricas:
-                                pontuacao_cvss = metricas['cvssMetricV31'][0].get('cvssData', {}).get('baseScore', 'N/A')
-                            elif 'cvssMetricV30' in metricas:
-                                pontuacao_cvss = metricas['cvssMetricV30'][0].get('cvssData', {}).get('baseScore', 'N/A')
+                        score = 'N/A'
+                        metrics = cve_obj.get('metrics', {})
+                        if 'cvssMetricV31' in metrics:
+                            score = metrics['cvssMetricV31'][0]['cvssData']['baseScore']
 
-                            registrar_novo_cve(id_cve)
-                            cves_processados.add(id_cve)
-                            total_novas_falhas += 1
+                        registrar_novo_cve(cve_id)
+                        conhecidos.add(cve_id)
+                        novos_dados.append({
+                            "Sistema Afetado": nome,
+                            "ID CVE": cve_id,
+                            "Score CVSS": score,
+                            "Descrição Técnica": desc
+                        })
+            time.sleep(6) # Delay obrigatorio para evitar bloqueio
+        except Exception as e:
+            registrar_log(f"Erro ao buscar {nome}: {e}")
 
-                            novos_dados_excel.append({
-                                "Sistema Afetado": nome_sistema,
-                                "CPE Base": cpe_sistema,
-                                "ID CVE": id_cve,
-                                "Data Publicação": data_publicacao[:10],
-                                "Score CVSS": pontuacao_cvss,
-                                "Descrição Técnica": descricao_tecnica
-                            })
-                else:
-                    registrar_log(f"  -> Erro na API do NIST (Código {resposta.status_code})")
-            except Exception as erro_conexao:
-                registrar_log(f"  -> Falha de comunicação: {erro_conexao}")
-            
-            data_atual_inicio = data_atual_fim
-            time.sleep(6)
-
-    # Processamento final
-    if total_novas_falhas > 0:
-        # Envia o e-mail com as novidades da semana
-        enviar_email_resumo(novos_dados_excel)
-        
-        # Salva no Excel
-        df_dados_recentes = pd.DataFrame(novos_dados_excel)
+    if novos_dados:
+        enviar_email_resumo(novos_dados)
+        df = pd.DataFrame(novos_dados)
         if os.path.exists(ARQUIVO_PLANILHA):
-            df_base_antiga = pd.read_excel(ARQUIVO_PLANILHA)
-            df_consolidado = pd.concat([df_base_antiga, df_dados_recentes]).drop_duplicates(subset=['ID CVE', 'Sistema Afetado'])
-        else:
-            df_consolidado = df_dados_recentes
-            
-        df_consolidado.to_excel(ARQUIVO_PLANILHA, index=False)
-        registrar_log(f"\nOperação concluída. A planilha foi atualizada com {total_novas_falhas} novos CVEs.")
+            df = pd.concat([pd.read_excel(ARQUIVO_PLANILHA), df]).drop_duplicates(subset=['ID CVE'])
+        df.to_excel(ARQUIVO_PLANILHA, index=False)
+        registrar_log(f"Planilha atualizada com {len(novos_dados)} novos registros.")
     else:
-        registrar_log("\nNenhuma nova vulnerabilidade encontrada neste ciclo.")
+        registrar_log("Nenhuma novidade encontrada.")
 
 if __name__ == "__main__":
     executar_varredura()
