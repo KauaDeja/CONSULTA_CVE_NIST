@@ -123,11 +123,11 @@ if novos_dados:
             except Exception as e:
                 registrar_log(f"Aviso: Arquivo Excel corrompido ou ilegível ({e}). Uma nova planilha será criada.")
         
-        # Salva o resultado final forçando a engine correta
-        df.to_excel(ARQUIVO_PLANILHA, index=False, engine='openpyxl')
-        registrar_log(f"Planilha {ARQUIVO_PLANILHA} atualizada.")
-    else:
-        registrar_log("Nenhuma vulnerabilidade nova encontrada nesta varredura.")
+            # Salva o resultado final forçando a engine correta
+            df.to_excel(ARQUIVO_PLANILHA, index=False, engine='openpyxl')
+            registrar_log(f"Planilha {ARQUIVO_PLANILHA} atualizada.")
+        else:
+            registrar_log("Nenhuma vulnerabilidade nova encontrada nesta varredura.")
 
 if __name__ == "__main__":
     executar_varredura()
