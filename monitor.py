@@ -78,7 +78,7 @@ def executar_varredura():
     data_atual = datetime.now(timezone.utc)
     
     # Janela de 15 dias para o teste
-    data_inicio = data_atual - timedelta(days=15)
+    data_inicio = data_atual - timedelta(days=254)
     str_ini = data_inicio.strftime('%Y-%m-%dT%H:%M:%S.000') + '+00:00'
     str_fim = data_atual.strftime('%Y-%m-%dT%H:%M:%S.000') + '+00:00'
     
