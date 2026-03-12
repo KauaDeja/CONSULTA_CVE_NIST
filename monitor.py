@@ -37,36 +37,28 @@ def registrar_novo_cve(id_cve):
     with open(ARQUIVO_HISTORICO, "a") as f:
         f.write(id_cve + "\n")
 
-def enviar_email_resumo(novos_dados):
+def testar_envio_simples():
+    print("Iniciando teste de envio simplificado...")
+    
     if not EMAIL_REMETENTE or not SENHA_REMETENTE:
-        registrar_log("Erro: Credenciais de e-mail ausentes.")
+        print("ERRO: As variaveis EMAIL_USER ou EMAIL_PASS nao estao configuradas no GitHub!")
         return
 
-    assunto = f"ALERTA: {len(novos_dados)} Novas Vulnerabilidades Identificadas"
-    
-    corpo = "Relatorio Semanal de Seguranca\n\n"
-    for item in novos_dados:
-        corpo += f"Ativo: {item['Sistema Afetado']} | ID: {item['ID CVE']} | CVSS: {item['Score CVSS']}\n"
-        corpo += f"Descricao: {item['Descrição Técnica']}\n"
-        corpo += "-" * 40 + "\n"
-
-    # SOLUÇÃO DEFINITIVA PARA O ERRO DE ENCODING:
-    # Removemos caracteres que o e-mail não aceita e forçamos UTF-8
-    corpo_final = corpo.encode('utf-8', errors='replace').decode('utf-8')
-
+    # Mensagem 100% estática, sem variáveis ou caracteres especiais
     msg = EmailMessage()
-    msg.set_content(corpo_final)
-    msg['Subject'] = assunto
+    msg.set_content("Teste de envio do monitor CVE. Se voce recebeu isso, o envio estah funcionando.")
+    msg['Subject'] = "Teste de Conexao"
     msg['From'] = EMAIL_REMETENTE
     msg['To'] = EMAIL_DESTINATARIO
 
     try:
+        print(f"Tentando conectar ao Gmail como: {EMAIL_REMETENTE}...")
         with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
             server.login(EMAIL_REMETENTE, SENHA_REMETENTE)
             server.send_message(msg)
-        registrar_log(f"E-mail enviado para {EMAIL_DESTINATARIO}")
+        print("SUCESSO: O e-mail de teste foi enviado!")
     except Exception as e:
-        registrar_log(f"Falha no envio: {e}")
+        print(f"FALHA NO TESTE: {e}")
 
 def executar_varredura():
     conhecidos = ler_cves_conhecidos()
