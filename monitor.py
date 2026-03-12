@@ -62,6 +62,8 @@ def enviar_email_resumo(novos_dados):
     msg['From'] = EMAIL_REMETENTE
     msg['To'] = EMAIL_DESTINATARIO
     msg['Subject'] = assunto
+    # remove qualquer caractere unicode
+    corpo = corpo.encode("ascii", "ignore").decode()
 
     msg.attach(MIMEText(corpo, "plain"))
 
