@@ -48,21 +48,21 @@ def enviar_email_resumo(novos_dados):
 
     assunto = f"[Monitor CVE] {len(novos_dados)} novas vulnerabilidades detectadas!"
     
-    corpo = "Relatório Semanal de Vulnerabilidades:\n\n"
+    # Montamos o corpo do e-mail
+    corpo_sujo = "Relatório Semanal de Vulnerabilidades:\n\n"
     for item in novos_dados:
-        corpo += f"{item['Sistema Afetado']} | {item['ID CVE']} | CVSS: {item['Score CVSS']}\n"
-        
-        # Força a limpeza de qualquer caractere alienígena que possa quebrar o envio
-        desc_segura = str(item['Descrição Técnica']).encode('utf-8', 'ignore').decode('utf-8')
-        corpo += f"Descrição: {desc_segura}\n"
-        corpo += "-" * 50 + "\n"
+        corpo_sujo += f"{item['Sistema Afetado']} | {item['ID CVE']} | CVSS: {item['Score CVSS']}\n"
+        corpo_sujo += f"Descrição: {item['Descrição Técnica']}\n"
+        corpo_sujo += "-" * 50 + "\n"
 
-        # Criando o e-mail do jeito mais simples e moderno do Python
-        msg = EmailMessage()
-        msg.set_content(corpo)
-        msg['Subject'] = assunto
-        msg['From'] = EMAIL_REMETENTE
-        msg['To'] = EMAIL_DESTINATARIO
+    # AQUI ESTÁ A SOLUÇÃO REAL: 
+    # Forçamos o texto a ser APENAS ASCII, deletando qualquer caractere invisível ou especial que cause erro.
+    corpo_limpo = corpo_sujo.encode("ascii", "ignore").decode("ascii")
+
+    msg = MIMEText(corpo_limpo)
+    msg['Subject'] = assunto
+    msg['From'] = EMAIL_REMETENTE
+    msg['To'] = EMAIL_DESTINATARIO
 
     try:
         with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
