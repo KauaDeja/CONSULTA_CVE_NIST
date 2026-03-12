@@ -107,14 +107,23 @@ def executar_varredura():
                 vulns = r.json().get('vulnerabilities', [])
                 for v in vulns:
                     cve_id = v.get('cve', {}).get('id')
-                    if cve_id not in conhecidos:
-                        desc = next((d.get('value') for d in v.get('cve', {}).get('descriptions', []) if d.get('lang') == 'en'), "N/A")
+                if cve_id not in conhecidos:
+                        # Isolando o objeto 'cve' para facilitar a leitura e extração
+                        cve_data = v.get('cve', {})
                         
+                        # Extraindo a descrição em inglês
+                        desc = next((d.get('value') for d in cve_data.get('descriptions', []) if d.get('lang') == 'en'), "N/A")
+                        
+                        # Extraindo a data de publicação
+                        data_publicacao = cve_data.get('published', 'N/A')
+                                        
                         registrar_novo_cve(cve_id)
                         conhecidos.add(cve_id)
+                        
                         novos_dados.append({
                             "Sistema Afetado": nome,
                             "ID CVE": cve_id,
+                            "Data de Publicação": data_publicacao, # <-- Campo adicionado aqui
                             "Score CVSS": "N/A",
                             "Descrição Técnica": desc
                         })
