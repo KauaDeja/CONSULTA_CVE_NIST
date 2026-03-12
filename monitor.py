@@ -43,7 +43,7 @@ def registrar_novo_cve(id_cve):
 
 def enviar_email_resumo(novos_dados):
     if not EMAIL_REMETENTE or not SENHA_REMETENTE:
-        registrar_log("Credenciais de e-mail não configuradas. Pulando envio de alerta.")
+        registrar_log("Credenciais de e-mail não configuradas.")
         return
 
     assunto = f"[Monitor CVE] {len(novos_dados)} novas vulnerabilidades detectadas!"
@@ -54,10 +54,13 @@ def enviar_email_resumo(novos_dados):
         corpo_txt += f"Descrição: {item['Descrição Técnica']}\n"
         corpo_txt += "-" * 50 + "\n"
 
-    # Criando a mensagem usando EmailMessage (que já está no seu import)
+    # APLICAÇÃO DO .encode('utf-8'):
+    # O errors='replace' garante que se houver um caracter impossível, 
+    # ele vira um '?' mas não quebra o script.
+    corpo_final = corpo_txt.encode('utf-8', errors='replace').decode('utf-8')
+
     msg = EmailMessage()
-    # O .set_content cuida da codificação UTF-8 automaticamente
-    msg.set_content(corpo_txt)
+    msg.set_content(corpo_final)
     msg['Subject'] = assunto
     msg['From'] = EMAIL_REMETENTE
     msg['To'] = EMAIL_DESTINATARIO
@@ -66,7 +69,7 @@ def enviar_email_resumo(novos_dados):
         with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
             server.login(EMAIL_REMETENTE, SENHA_REMETENTE)
             server.send_message(msg)
-        registrar_log(f"E-mail de resumo enviado com sucesso para {EMAIL_DESTINATARIO}!")
+        registrar_log(f"E-mail enviado para {EMAIL_DESTINATARIO}!")
     except Exception as erro:
         registrar_log(f"Erro ao enviar e-mail: {erro}")
 
