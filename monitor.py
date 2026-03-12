@@ -45,32 +45,33 @@ def registrar_novo_cve(id_cve):
 
 def enviar_email_resumo(novos_dados):
     if not EMAIL_REMETENTE or not SENHA_REMETENTE:
-        registrar_log("Credenciais de e-mail não configuradas. Pulando envio de alerta.")
+        registrar_log("Credenciais de e-mail nao configuradas. Pulando envio.")
         return
 
-    assunto = f"[Monitor CVE] {len(novos_dados)} novas vulnerabilidades detectadas!"
-    
-    corpo = "Relatório Semanal de Vulnerabilidades:\n\n"
+    assunto = f"[Monitor CVE] {len(novos_dados)} novas vulnerabilidades detectadas"
+
+    corpo = "Relatorio de Vulnerabilidades\n\n"
+
     for item in novos_dados:
-        corpo += f" {item['Sistema Afetado']} | {item['ID CVE']} | CVSS: {item['Score CVSS']}\n"
-        # Limpa o caracter fantasma \xa0 na hora de montar o e-mail
-        desc_limpa = item['Descrição Técnica'].replace('\xa0', ' ')
-        corpo += f"Descrição: {desc_limpa}\n"
-        corpo += "-" * 50 + "\n"
+        corpo += f"Sistema: {item['Sistema Afetado']}\n"
+        corpo += f"CVE: {item['ID CVE']}\n"
+        corpo += f"CVSS: {item['Score CVSS']}\n"
+        corpo += "-" * 40 + "\n"
 
     msg = MIMEMultipart()
     msg['From'] = EMAIL_REMETENTE
     msg['To'] = EMAIL_DESTINATARIO
-    # Força o cabeçalho a aceitar acentos sem quebrar
-    msg['Subject'] = Header(assunto, 'utf-8')
-    corpo = corpo.encode('utf-8', 'ignore').decode('utf-8')
-    msg.attach(MIMEText(corpo, 'plain', 'utf-8'))
+    msg['Subject'] = assunto
+
+    msg.attach(MIMEText(corpo, "plain"))
 
     try:
-        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
             server.login(EMAIL_REMETENTE, SENHA_REMETENTE)
-            server.send_message(msg)
-        registrar_log(f"E-mail de resumo enviado com sucesso para {EMAIL_DESTINATARIO}!")
+            server.sendmail(EMAIL_REMETENTE, EMAIL_DESTINATARIO, msg.as_string())
+
+        registrar_log("E-mail enviado com sucesso!")
+
     except Exception as erro:
         registrar_log(f"Erro ao enviar e-mail: {erro}")
 
