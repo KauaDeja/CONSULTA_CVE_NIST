@@ -48,18 +48,16 @@ def enviar_email_resumo(novos_dados):
 
     assunto = f"[Monitor CVE] {len(novos_dados)} novas vulnerabilidades detectadas!"
     
-    # Montamos o corpo do e-mail
-    corpo_sujo = "Relatório Semanal de Vulnerabilidades:\n\n"
+    corpo_txt = "Relatório Semanal de Vulnerabilidades:\n\n"
     for item in novos_dados:
-        corpo_sujo += f"{item['Sistema Afetado']} | {item['ID CVE']} | CVSS: {item['Score CVSS']}\n"
-        corpo_sujo += f"Descrição: {item['Descrição Técnica']}\n"
-        corpo_sujo += "-" * 50 + "\n"
+        corpo_txt += f"{item['Sistema Afetado']} | {item['ID CVE']} | CVSS: {item['Score CVSS']}\n"
+        corpo_txt += f"Descrição: {item['Descrição Técnica']}\n"
+        corpo_txt += "-" * 50 + "\n"
 
-    # AQUI ESTÁ A SOLUÇÃO REAL: 
-    # Forçamos o texto a ser APENAS ASCII, deletando qualquer caractere invisível ou especial que cause erro.
-    corpo_limpo = corpo_sujo.encode("ascii", "ignore").decode("ascii")
-
-    msg = MIMEText(corpo_limpo)
+    # Criando a mensagem usando EmailMessage (que já está no seu import)
+    msg = EmailMessage()
+    # O .set_content cuida da codificação UTF-8 automaticamente
+    msg.set_content(corpo_txt)
     msg['Subject'] = assunto
     msg['From'] = EMAIL_REMETENTE
     msg['To'] = EMAIL_DESTINATARIO
