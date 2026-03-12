@@ -7,9 +7,9 @@ from email.message import EmailMessage
 from datetime import datetime, timedelta, timezone
 
 # Variáveis de Ambiente (GitHub Secrets)
-CHAVE_API_NVD = os.environ.get("NVD_API_KEY")
-EMAIL_REMETENTE = os.environ.get("EMAIL_USER")
-SENHA_REMETENTE = os.environ.get("EMAIL_PASS")
+CHAVE_API_NVD = os.environ.get("NVD_API_KEY", "").strip()
+EMAIL_REMETENTE = os.environ.get("EMAIL_USER", "").strip()
+SENHA_REMETENTE = os.environ.get("EMAIL_PASS", "").strip()
 EMAIL_DESTINATARIO = "kauakarate@gmail.com"
 
 ALVOS_MONITORAMENTO = {
