@@ -52,7 +52,7 @@ def enviar_email_resumo(novos_dados):
     
     corpo = "Relatório Semanal de Vulnerabilidades:\n\n"
     for item in novos_dados:
-        corpo += f"⚠️ {item['Sistema Afetado']} | {item['ID CVE']} | CVSS: {item['Score CVSS']}\n"
+        corpo += f" {item['Sistema Afetado']} | {item['ID CVE']} | CVSS: {item['Score CVSS']}\n"
         # Limpa o caracter fantasma \xa0 na hora de montar o e-mail
         desc_limpa = item['Descrição Técnica'].replace('\xa0', ' ')
         corpo += f"Descrição: {desc_limpa}\n"
@@ -63,6 +63,7 @@ def enviar_email_resumo(novos_dados):
     msg['To'] = EMAIL_DESTINATARIO
     # Força o cabeçalho a aceitar acentos sem quebrar
     msg['Subject'] = Header(assunto, 'utf-8')
+    corpo = corpo.encode('utf-8', 'ignore').decode('utf-8')
     msg.attach(MIMEText(corpo, 'plain', 'utf-8'))
 
     try:
