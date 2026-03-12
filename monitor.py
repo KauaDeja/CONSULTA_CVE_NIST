@@ -37,7 +37,7 @@ def registrar_novo_cve(id_cve):
     with open(ARQUIVO_HISTORICO, "a") as f:
         f.write(id_cve + "\n")
 
-def testar_envio_simples():
+def enviar_email_resumo():
     print("Iniciando teste de envio simplificado...")
     
     if not EMAIL_REMETENTE or not SENHA_REMETENTE:
