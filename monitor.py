@@ -3,13 +3,13 @@ import requests
 import pandas as pd
 import time
 import smtplib
-from email.mime.text import MIMEText
+from email.message import EmailMessage
 from datetime import datetime, timedelta, timezone
 
-# Variáveis de Ambiente (GitHub Secrets)
-CHAVE_API_NVD = os.environ.get("NVD_API_KEY", "")
-EMAIL_REMETENTE = os.environ.get("EMAIL_USER", "")
-SENHA_REMETENTE = os.environ.get("EMAIL_PASS", "")
+# Variáveis de Ambiente
+CHAVE_API_NVD = os.environ.get("NVD_API_KEY")
+EMAIL_REMETENTE = os.environ.get("EMAIL_USER")
+SENHA_REMETENTE = os.environ.get("EMAIL_PASS")
 EMAIL_DESTINATARIO = "kauakarate@gmail.com"
 
 ALVOS_MONITORAMENTO = {
@@ -37,40 +37,40 @@ def registrar_novo_cve(id_cve):
     with open(ARQUIVO_HISTORICO, "a") as f:
         f.write(id_cve + "\n")
 
-def enviar_email_resumo(cve_id, descricao, ativo):
-    assunto = f"[WATCHTOWER] ALERTA: {ativo} ({cve_id})"
-    corpo = f"""
-    [RELATÓRIO DE MONITORAMENTO - WATCHTOWER CONSULTING]
+def enviar_email_resumo(novos_dados):
+    if not EMAIL_REMETENTE or not SENHA_REMETENTE:
+        registrar_log("Credenciais de e-mail não configuradas.")
+        return
+
+    assunto = f"Alerta de Segurança: {len(novos_dados)} nova(s) vulnerabilidade(s) detectada(s)"
     
-    Identificamos uma vulnerabilidade crítica para o ativo: {ativo}.
+    # Construindo o corpo do e-mail com os dados reais
+    linhas_corpo = ["Olá,\n", "O monitoramento detectou os seguintes CVEs recentes:\n"]
     
-    ------------------------------------------------------------
-    Prezado Prof. Nilton,
-    
-    Nossa plataforma detectou uma falha publicada no NIST:
-    
-    - Ativo: {ativo}
-    - ID: {cve_id}
-    - Descrição: {descricao}
-    
-    Impacto no Banco Digital: Risco de comprometimento de dados e indisponibilidade.
-    ------------------------------------------------------------
-    
-    Atenciosamente, 
-    Equipe WatchTower Consulting
-    """
-    msg = MIMEText(corpo)
+    for item in novos_dados:
+        linhas_corpo.append(f"🔴 Sistema Afetado: {item['Sistema Afetado']}")
+        linhas_corpo.append(f"   ID CVE: {item['ID CVE']}")
+        linhas_corpo.append(f"   Descrição: {item['Descrição Técnica']}")
+        linhas_corpo.append("-" * 50) # Linha separadora entre os CVEs
+
+    corpo_email = "\n".join(linhas_corpo)
+
+    msg = EmailMessage()
+    msg.set_content(corpo_email)
     msg['Subject'] = assunto
-    msg['From'] = EMAIL
-    msg['To'] = EMAIL
+    msg['From'] = EMAIL_REMETENTE
+    msg['To'] = EMAIL_DESTINATARIO
 
     try:
+        # Trava de segurança: remove espaços acidentais da senha vinda do .env
+        senha_limpa = SENHA_REMETENTE.replace(" ", "").replace("\xa0", "").strip()
+        
         with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
-            server.login(EMAIL, SENHA_APP)
+            server.login(EMAIL_REMETENTE, senha_limpa)
             server.send_message(msg)
-        log(f"Alerta enviado: {cve_id}")
-    except Exception as e:
-        log(f"Erro de e-mail: {e}")
+        registrar_log(f"E-mail com relatório enviado com sucesso para {EMAIL_DESTINATARIO}")
+    except Exception as erro:
+        registrar_log(f"Erro ao enviar e-mail: {erro}")
 
 def executar_varredura():
     conhecidos = ler_cves_conhecidos()
@@ -106,9 +106,9 @@ def executar_varredura():
                             "Score CVSS": "N/A",
                             "Descrição Técnica": desc
                         })
-            time.sleep(6)
+            time.sleep(6) # Respeitando o rate limit da NVD
         except Exception as e:
-            registrar_log(f"Erro: {e}")
+            registrar_log(f"Erro ao consultar NVD: {e}")
 
     if novos_dados:
         enviar_email_resumo(novos_dados)
@@ -116,6 +116,9 @@ def executar_varredura():
         if os.path.exists(ARQUIVO_PLANILHA):
             df = pd.concat([pd.read_excel(ARQUIVO_PLANILHA), df]).drop_duplicates(subset=['ID CVE'])
         df.to_excel(ARQUIVO_PLANILHA, index=False)
+        registrar_log(f"Planilha {ARQUIVO_PLANILHA} atualizada.")
+    else:
+        registrar_log("Nenhuma vulnerabilidade nova encontrada nesta varredura.")
 
 if __name__ == "__main__":
     executar_varredura()
