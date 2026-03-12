@@ -3,10 +3,8 @@ import requests
 import pandas as pd
 import time
 import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+from email.message import EmailMessage
 from datetime import datetime, timedelta, timezone
-from email.header import Header # Adicione isso lá nos imports no topo do arquivo se não tiver
 
 # Variáveis de Ambiente (Configuradas no GitHub Secrets)
 CHAVE_API_NVD = os.environ.get("NVD_API_KEY")
@@ -53,14 +51,18 @@ def enviar_email_resumo(novos_dados):
     corpo = "Relatório Semanal de Vulnerabilidades:\n\n"
     for item in novos_dados:
         corpo += f"{item['Sistema Afetado']} | {item['ID CVE']} | CVSS: {item['Score CVSS']}\n"
-        corpo += f"Descrição: {item['Descrição Técnica']}\n"
+        
+        # Força a limpeza de qualquer caractere alienígena que possa quebrar o envio
+        desc_segura = str(item['Descrição Técnica']).encode('utf-8', 'ignore').decode('utf-8')
+        corpo += f"Descrição: {desc_segura}\n"
         corpo += "-" * 50 + "\n"
 
-    # Usando a estrutura do seu código original, forçando a codificação UTF-8
-    msg = MIMEText(corpo, 'plain', 'utf-8')
-    msg['Subject'] = assunto
-    msg['From'] = EMAIL_REMETENTE
-    msg['To'] = EMAIL_DESTINATARIO
+        # Criando o e-mail do jeito mais simples e moderno do Python
+        msg = EmailMessage()
+        msg.set_content(corpo)
+        msg['Subject'] = assunto
+        msg['From'] = EMAIL_REMETENTE
+        msg['To'] = EMAIL_DESTINATARIO
 
     try:
         with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
