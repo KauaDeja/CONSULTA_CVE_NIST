@@ -3,7 +3,7 @@ import requests
 import pandas as pd
 import time
 import smtplib
-from email.message import EmailMessage
+from email.mime.text import MIMEText
 from datetime import datetime, timedelta, timezone
 
 # Variáveis de Ambiente (GitHub Secrets)
@@ -37,28 +37,40 @@ def registrar_novo_cve(id_cve):
     with open(ARQUIVO_HISTORICO, "a") as f:
         f.write(id_cve + "\n")
 
-def enviar_email_resumo(novos_dados):
-    if not EMAIL_REMETENTE or not SENHA_REMETENTE:
-        registrar_log("Credenciais de e-mail não configuradas.")
-        return
-
-    # Linha 26 e arredores simplificadas ao maximo: sem variaveis, sem acentos, sem segredo.
-    assunto_teste = "Alerta de Vulnerabilidades"
-    corpo_teste = "test"
-
-    msg = EmailMessage()
-    msg.set_content(corpo_teste)
-    msg['Subject'] = assunto_teste
-    msg['From'] = EMAIL_REMETENTE
-    msg['To'] = EMAIL_DESTINATARIO
+def enviar_email_resumo(cve_id, descricao, ativo):
+    assunto = f"[WATCHTOWER] ALERTA: {ativo} ({cve_id})"
+    corpo = f"""
+    [RELATÓRIO DE MONITORAMENTO - WATCHTOWER CONSULTING]
+    
+    Identificamos uma vulnerabilidade crítica para o ativo: {ativo}.
+    
+    ------------------------------------------------------------
+    Prezado Prof. Nilton,
+    
+    Nossa plataforma detectou uma falha publicada no NIST:
+    
+    - Ativo: {ativo}
+    - ID: {cve_id}
+    - Descrição: {descricao}
+    
+    Impacto no Banco Digital: Risco de comprometimento de dados e indisponibilidade.
+    ------------------------------------------------------------
+    
+    Atenciosamente, 
+    Equipe WatchTower Consulting
+    """
+    msg = MIMEText(corpo)
+    msg['Subject'] = assunto
+    msg['From'] = EMAIL
+    msg['To'] = EMAIL
 
     try:
         with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
-            server.login(EMAIL_REMETENTE, SENHA_REMETENTE)
+            server.login(EMAIL, SENHA_APP)
             server.send_message(msg)
-        registrar_log(f"E-mail enviado com sucesso para {EMAIL_DESTINATARIO}")
-    except Exception as erro:
-        registrar_log(f"Erro ao enviar e-mail: {erro}")
+        log(f"Alerta enviado: {cve_id}")
+    except Exception as e:
+        log(f"Erro de e-mail: {e}")
 
 def executar_varredura():
     conhecidos = ler_cves_conhecidos()
