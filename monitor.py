@@ -42,14 +42,13 @@ def enviar_email_resumo(novos_dados):
         registrar_log("Credenciais de e-mail não configuradas.")
         return
 
-    assunto = f"[Monitor CVE] {len(novos_dados)} novas vulnerabilidades detectadas!"
-    
-    # TESTE: Apenas texto simples para isolar o problema de encoding
+    # Linha 26 e arredores simplificadas ao maximo: sem variaveis, sem acentos, sem segredo.
+    assunto_teste = "Alerta de Vulnerabilidades"
     corpo_teste = "test"
 
     msg = EmailMessage()
     msg.set_content(corpo_teste)
-    msg['Subject'] = assunto
+    msg['Subject'] = assunto_teste
     msg['From'] = EMAIL_REMETENTE
     msg['To'] = EMAIL_DESTINATARIO
 
@@ -57,7 +56,7 @@ def enviar_email_resumo(novos_dados):
         with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
             server.login(EMAIL_REMETENTE, SENHA_REMETENTE)
             server.send_message(msg)
-        registrar_log(f"E-mail enviado para {EMAIL_DESTINATARIO}")
+        registrar_log(f"E-mail enviado com sucesso para {EMAIL_DESTINATARIO}")
     except Exception as erro:
         registrar_log(f"Erro ao enviar e-mail: {erro}")
 
