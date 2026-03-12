@@ -6,6 +6,7 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime, timedelta, timezone
+from email.header import Header # Adicione isso lá nos imports no topo do arquivo se não tiver
 
 # Variáveis de Ambiente (Configuradas no GitHub Secrets)
 CHAVE_API_NVD = os.environ.get("NVD_API_KEY")
@@ -52,13 +53,16 @@ def enviar_email_resumo(novos_dados):
     corpo = "Relatório Semanal de Vulnerabilidades:\n\n"
     for item in novos_dados:
         corpo += f"⚠️ {item['Sistema Afetado']} | {item['ID CVE']} | CVSS: {item['Score CVSS']}\n"
-        corpo += f"Descrição: {item['Descrição Técnica']}\n"
+        # Limpa o caracter fantasma \xa0 na hora de montar o e-mail
+        desc_limpa = item['Descrição Técnica'].replace('\xa0', ' ')
+        corpo += f"Descrição: {desc_limpa}\n"
         corpo += "-" * 50 + "\n"
 
     msg = MIMEMultipart()
     msg['From'] = EMAIL_REMETENTE
     msg['To'] = EMAIL_DESTINATARIO
-    msg['Subject'] = assunto
+    # Força o cabeçalho a aceitar acentos sem quebrar
+    msg['Subject'] = Header(assunto, 'utf-8')
     msg.attach(MIMEText(corpo, 'plain', 'utf-8'))
 
     try:
@@ -117,7 +121,9 @@ def executar_varredura():
                         
                         if id_cve not in cves_processados:
                             data_publicacao = dados_cve.get('published', 'Data N/A')
-                            descricao_tecnica = next((d.get('value') for d in dados_cve.get('descriptions', []) if d.get('lang') == 'en'), "Sem descrição")
+                            # Como deve ficar agora (substitua por estas duas linhas):
+                            descricao_tecnica_crua = next((d.get('value') for d in dados_cve.get('descriptions', []) if d.get('lang') == 'en'), "Sem descrição")
+                            descricao_tecnica = descricao_tecnica_crua.replace('\xa0', ' ')
                             
                             pontuacao_cvss = 'N/A'
                             metricas = dados_cve.get('metrics', {})
