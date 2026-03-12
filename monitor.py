@@ -10,7 +10,7 @@ from datetime import datetime, timedelta, timezone
 CHAVE_API_NVD = os.environ.get("NVD_API_KEY")
 EMAIL_REMETENTE = os.environ.get("EMAIL_USER")
 SENHA_REMETENTE = os.environ.get("EMAIL_PASS")
-EMAIL_DESTINATARIO = "kauakarate@gmail.com"
+EMAIL_DESTINATARIO = "Nilton.moreira@fatec.sp.gov.br"
 
 ALVOS_MONITORAMENTO = {
     "Red Hat Enterprise Linux 9": {"busca": "Red Hat Enterprise Linux 9", "cpe": "cpe:2.3:o:redhat:enterprise_linux:9"},
@@ -39,21 +39,35 @@ def registrar_novo_cve(id_cve):
 
 def enviar_email_resumo(novos_dados):
     if not EMAIL_REMETENTE or not SENHA_REMETENTE:
-        registrar_log("Credenciais de e-mail não configuradas.")
+        registrar_log("Credenciais de e-mail nao configuradas.")
         return
 
-    assunto = f"Alerta de Segurança: {len(novos_dados)} nova(s) vulnerabilidade(s) detectada(s)"
+    assunto = f"[Umbra Security] Alerta: {len(novos_dados)} novos CVEs detectados"
     
-    # Construindo o corpo do e-mail com os dados reais
-    linhas_corpo = ["Olá,\n", "O monitoramento detectou os seguintes CVEs recentes:\n"]
+    linhas = [
+        "Ola Equipe,",
+        "",
+        f"O monitoramento da Umbra Security detectou {len(novos_dados)} nova(s) vulnerabilidade(s).",
+        "==================================================",
+        ""
+    ]
     
     for item in novos_dados:
-        linhas_corpo.append(f"🔴 Sistema Afetado: {item['Sistema Afetado']}")
-        linhas_corpo.append(f"   ID CVE: {item['ID CVE']}")
-        linhas_corpo.append(f"   Descrição: {item['Descrição Técnica']}")
-        linhas_corpo.append("-" * 50) # Linha separadora entre os CVEs
+        cve_id = item['ID CVE']
+        link = f"https://nvd.nist.gov/vuln/detail/{cve_id}"
+        desc = item['Descrição Técnica']
+        
+        if len(desc) > 200:
+            desc = desc[:200] + "..."
+            
+        linhas.append(f"🔴 Ativo: {item['Sistema Afetado']}")
+        linhas.append(f"🆔 CVE: {cve_id}")
+        linhas.append(f"🔗 Link: {link}")
+        linhas.append(f"📄 Resumo: {desc}")
+        linhas.append("-" * 50)
+        linhas.append("")
 
-    corpo_email = "\n".join(linhas_corpo)
+    corpo_email = "\n".join(linhas)
 
     msg = EmailMessage()
     msg.set_content(corpo_email)
@@ -62,13 +76,11 @@ def enviar_email_resumo(novos_dados):
     msg['To'] = EMAIL_DESTINATARIO
 
     try:
-        # Trava de segurança: remove espaços acidentais da senha vinda do .env
-        senha_limpa = SENHA_REMETENTE.replace(" ", "").replace("\xa0", "").strip()
-        
+        senha_limpa = SENHA_REMETENTE.strip()
         with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
             server.login(EMAIL_REMETENTE, senha_limpa)
             server.send_message(msg)
-        registrar_log(f"E-mail com relatório enviado com sucesso para {EMAIL_DESTINATARIO}")
+        registrar_log(f"E-mail enviado para {EMAIL_DESTINATARIO}")
     except Exception as erro:
         registrar_log(f"Erro ao enviar e-mail: {erro}")
 
