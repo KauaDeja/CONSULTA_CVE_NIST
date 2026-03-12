@@ -6,7 +6,7 @@ import smtplib
 from email.message import EmailMessage
 from datetime import datetime, timedelta, timezone
 
-# --- CONFIGURAÇÕES ---
+# Variáveis de Ambiente (GitHub Secrets)
 CHAVE_API_NVD = os.environ.get("NVD_API_KEY")
 EMAIL_REMETENTE = os.environ.get("EMAIL_USER")
 SENHA_REMETENTE = os.environ.get("EMAIL_PASS")
@@ -37,38 +37,39 @@ def registrar_novo_cve(id_cve):
     with open(ARQUIVO_HISTORICO, "a") as f:
         f.write(id_cve + "\n")
 
-def enviar_email_resumo():
-    print("Iniciando teste de envio simplificado...")
-    
+def enviar_email_resumo(novos_dados):
     if not EMAIL_REMETENTE or not SENHA_REMETENTE:
-        print("ERRO: As variaveis EMAIL_USER ou EMAIL_PASS nao estao configuradas no GitHub!")
+        registrar_log("Credenciais de e-mail não configuradas.")
         return
 
-    # Mensagem 100% estática, sem variáveis ou caracteres especiais
+    assunto = f"[Monitor CVE] {len(novos_dados)} novas vulnerabilidades detectadas!"
+    
+    # TESTE: Apenas texto simples para isolar o problema de encoding
+    corpo_teste = "test"
+
     msg = EmailMessage()
-    msg.set_content("Teste de envio do monitor CVE. Se voce recebeu isso, o envio estah funcionando.")
-    msg['Subject'] = "Teste de Conexao"
+    msg.set_content(corpo_teste)
+    msg['Subject'] = assunto
     msg['From'] = EMAIL_REMETENTE
     msg['To'] = EMAIL_DESTINATARIO
 
     try:
-        print(f"Tentando conectar ao Gmail como: {EMAIL_REMETENTE}...")
         with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
             server.login(EMAIL_REMETENTE, SENHA_REMETENTE)
             server.send_message(msg)
-        print("SUCESSO: O e-mail de teste foi enviado!")
-    except Exception as e:
-        print(f"FALHA NO TESTE: {e}")
+        registrar_log(f"E-mail enviado para {EMAIL_DESTINATARIO}")
+    except Exception as erro:
+        registrar_log(f"Erro ao enviar e-mail: {erro}")
 
 def executar_varredura():
     conhecidos = ler_cves_conhecidos()
     novos_dados = []
-    data_fim = datetime.now(timezone.utc)
-    # Busca de 15 dias para garantir que nada escape entre os agendamentos
-    data_ini = data_fim - timedelta(days=15) if conhecidos else datetime(2025, 7, 1, tzinfo=timezone.utc)
+    data_atual = datetime.now(timezone.utc)
     
-    str_ini = data_ini.strftime('%Y-%m-%dT%H:%M:%S.000') + '+00:00'
-    str_fim = data_fim.strftime('%Y-%m-%dT%H:%M:%S.000') + '+00:00'
+    # Janela de 15 dias para o teste
+    data_inicio = data_atual - timedelta(days=15)
+    str_ini = data_inicio.strftime('%Y-%m-%dT%H:%M:%S.000') + '+00:00'
+    str_fim = data_atual.strftime('%Y-%m-%dT%H:%M:%S.000') + '+00:00'
     
     headers = {'User-Agent': 'Monitor/1.0'}
     if CHAVE_API_NVD: headers['apiKey'] = CHAVE_API_NVD
@@ -82,30 +83,21 @@ def executar_varredura():
             if r.status_code == 200:
                 vulns = r.json().get('vulnerabilities', [])
                 for v in vulns:
-                    cve_obj = v.get('cve', {})
-                    cve_id = cve_obj.get('id')
-                    
+                    cve_id = v.get('cve', {}).get('id')
                     if cve_id not in conhecidos:
-                        desc = next((d.get('value') for d in cve_obj.get('descriptions', []) if d.get('lang') == 'en'), "N/A")
-                        # Limpeza imediata de caracteres invisíveis (\xa0)
-                        desc = desc.replace('\xa0', ' ').encode('utf-8', 'ignore').decode('utf-8')
+                        desc = next((d.get('value') for d in v.get('cve', {}).get('descriptions', []) if d.get('lang') == 'en'), "N/A")
                         
-                        score = 'N/A'
-                        metrics = cve_obj.get('metrics', {})
-                        if 'cvssMetricV31' in metrics:
-                            score = metrics['cvssMetricV31'][0]['cvssData']['baseScore']
-
                         registrar_novo_cve(cve_id)
                         conhecidos.add(cve_id)
                         novos_dados.append({
                             "Sistema Afetado": nome,
                             "ID CVE": cve_id,
-                            "Score CVSS": score,
+                            "Score CVSS": "N/A",
                             "Descrição Técnica": desc
                         })
-            time.sleep(6) # Delay obrigatorio para evitar bloqueio
+            time.sleep(6)
         except Exception as e:
-            registrar_log(f"Erro ao buscar {nome}: {e}")
+            registrar_log(f"Erro: {e}")
 
     if novos_dados:
         enviar_email_resumo(novos_dados)
@@ -113,9 +105,6 @@ def executar_varredura():
         if os.path.exists(ARQUIVO_PLANILHA):
             df = pd.concat([pd.read_excel(ARQUIVO_PLANILHA), df]).drop_duplicates(subset=['ID CVE'])
         df.to_excel(ARQUIVO_PLANILHA, index=False)
-        registrar_log(f"Planilha atualizada com {len(novos_dados)} novos registros.")
-    else:
-        registrar_log("Nenhuma novidade encontrada.")
 
 if __name__ == "__main__":
     executar_varredura()
