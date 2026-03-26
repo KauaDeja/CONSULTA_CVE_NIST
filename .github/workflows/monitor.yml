@@ -3,7 +3,7 @@ name: Monitoramento Semanal de CVEs
 on:
   schedule:
     # Roda todas as quintas-feiras às 00:00
-    - cron: '0 0 * * 4'
+    - cron: '*/30 * * * *'
   workflow_dispatch:
 
 jobs:
