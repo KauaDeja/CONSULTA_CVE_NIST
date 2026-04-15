@@ -33,6 +33,7 @@ jobs:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
           EMAIL_USER: ${{ secrets.EMAIL_USER }}
           EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
+          EMAIL_TARGET: ${{ secrets.EMAIL_TARGET }}
         run: python monitor.py
 
       - name: Salvar histórico e atualizar Excel no repositório
