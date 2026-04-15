@@ -11,7 +11,7 @@ CHAVE_API_NVD = os.environ.get("NVD_API_KEY")
 EMAIL_REMETENTE = os.environ.get("EMAIL_USER")
 SENHA_REMETENTE = os.environ.get("EMAIL_PASS")
 EMAIL_DESTINATARIO = os.environ.get("EMAIL_TARGET")
-#EMAIL_DESTINATARIO = "kauakarate@gmail.com"
+EMAIL_COPY = os.environ.get("EMAIL_CC")
 
 ALVOS_MONITORAMENTO = {
     "Red Hat Enterprise Linux 9": {"busca": "Red Hat Enterprise Linux 9", "cpe": "cpe:2.3:o:redhat:enterprise_linux:9"},
@@ -75,6 +75,7 @@ def enviar_email_resumo(novos_dados):
     msg['Subject'] = assunto
     msg['From'] = EMAIL_REMETENTE
     msg['To'] = EMAIL_DESTINATARIO
+    msg['Cc'] = EMAIL_COPY
 
     try:
         senha_limpa = SENHA_REMETENTE.strip()
