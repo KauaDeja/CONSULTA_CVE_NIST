@@ -10,8 +10,8 @@ from datetime import datetime, timedelta, timezone
 CHAVE_API_NVD = os.environ.get("NVD_API_KEY")
 EMAIL_REMETENTE = os.environ.get("EMAIL_USER")
 SENHA_REMETENTE = os.environ.get("EMAIL_PASS")
-#EMAIL_DESTINATARIO = "Nilton.moreira@fatec.sp.gov.br"
-EMAIL_DESTINATARIO = "kauakarate@gmail.com"
+EMAIL_DESTINATARIO = os.environ.get("EMAIL_TARGET")
+#EMAIL_DESTINATARIO = "kauakarate@gmail.com"
 
 ALVOS_MONITORAMENTO = {
     "Red Hat Enterprise Linux 9": {"busca": "Red Hat Enterprise Linux 9", "cpe": "cpe:2.3:o:redhat:enterprise_linux:9"},
