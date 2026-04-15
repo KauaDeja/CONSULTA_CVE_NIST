@@ -34,6 +34,7 @@ jobs:
           EMAIL_USER: ${{ secrets.EMAIL_USER }}
           EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
           EMAIL_TARGET: ${{ secrets.EMAIL_TARGET }}
+          EMAIL_CC: ${{ secrets.EMAIL_CC }}
         run: python monitor.py
 
       - name: Salvar histórico e atualizar Excel no repositório
